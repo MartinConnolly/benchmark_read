@@ -1,0 +1,61 @@
+---
+title: "benchmarking read csv functions"
+author: "Martin Connolly"
+date: "Tuesday, April 21, 2015"
+output: html_document
+---
+
+#Comparison of read.csv against read_csv with increasing file size
+
+You can find the sample file on my github
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+library(readr)
+library(dplyr)
+library(ggplot2)
+setwd("C:/Users/martin.connolly/Documents")
+sample <- read.csv("~/GitHub/benchmark_read/data/insurance_sample.csv")
+write.csv(sample, "~/GitHub/benchmark_read/data/sample.csv", row.names = FALSE)
+sample <- read.csv("~/GitHub/benchmark_read/data/sample.csv")
+loop_n <- 20
+results1 <- matrix(NA, loop_n, 2)
+for(i in 1:loop_n) {
+  elapsed <-system.time(x <- read.csv("~/GitHub/benchmark_read/data/sample.csv"))[3]
+  filesize <- file.info("~/GitHub/benchmark_read/data/sample.csv")$size / 1000
+  sample1 <- rbind(x, sample)
+  write.csv(sample1, "~/GitHub/benchmark_read/data/sample.csv", row.names = FALSE)
+  Sys.sleep(2 * i)
+  results1[i, ] <- c(filesize, elapsed)
+}
+sample1 <- read_csv("~/GitHub/benchmark_read/data/insurance_sample.csv")
+#because the read_csv function seems to append any problem reports to the data.frame in an attribute we need to
+#split these out
+attributes(sample1)$problems <- NULL
+write_csv(sample1, "~/GitHub/benchmark_read/data/sample.csv", append = FALSE)
+sample1 <- read_csv("~/GitHub/benchmark_read/data/sample.csv")
+attributes(sample1)$problems <- NULL
+results2 <- matrix(NA, loop_n, 2)
+for(i in 1:loop_n) {
+  elapsed <- system.time(x <- read_csv("~/GitHub/benchmark_read/data/sample.csv"))[3]
+  filesize <- file.info("~/GitHub/benchmark_read/data/sample.csv")$size / 1000
+  #splitting out the problems attribute again
+  attributes(x)$problems <- NULL
+  sample2 <- rbind(x, sample1)
+  write_csv(sample2, "~/GitHub/benchmark_read/data/sample.csv", append = FALSE)
+  results2[i, ] <- c(filesize, elapsed)
+}
+
+results2 <- data.frame(results2)
+results2[, 3] <- "read_csv"
+results1 <- data.frame(results1)
+results1[, 3] <- "read.csv"
+results <- rbind(results1, results2)
+names(results) <- c("filesize", "elapsed_time", "read_function")
+qplot(data = results, x = filesize, y = elapsed_time, color = read_function) + geom_line() + xlab("file size (KB)") + ylab("elapsed time") + ggtitle("Comparing read.csv against read_csv")
+```
+
+```{r, echo=FALSE}
+qplot(data = results, x = filesize, y = elapsed_time, color = read_function) + geom_line() + xlab("file size (KB)") + ylab("elapsed time") + ggtitle("Comparing read.csv against read_csv")
+```
+
+END
